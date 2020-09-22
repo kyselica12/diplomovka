@@ -1,9 +1,9 @@
-numberOfSeries: 10
+numberOfSeries: 1
 SizeX: 1024
 SizeY: 1024
 dataFile: C:\Users\user\Dropbox\diplomovka\startgen\data
 plot: True
-save: True
+saveImages: False
 
 Stars:
   count:
@@ -24,7 +24,7 @@ Stars:
 Objects:
   count:
     min: 1
-    max: 5
+    max: 1
     random: uniform
 
   brightness:

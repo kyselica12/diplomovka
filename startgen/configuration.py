@@ -65,7 +65,7 @@ class Configuration:
     Objects: Objects
     dataFile: str
     plot: bool
-    save: bool
+    saveImages: bool
     Noise: Noise
 
     def __init__(self, **entries):
