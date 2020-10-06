@@ -1,7 +1,7 @@
 numberOfSeries: 1
 SizeX: 1024
 SizeY: 1024
-dataFile: C:\Users\user\Dropbox\diplomovka\startgen\data
+dataFile: /media/daniel/Windows/Users/user/Dropbox/diplomovka/startgen/data  # C:\Users\user\Dropbox\diplomovka\startgen\data
 plot: True
 saveImages: False
 

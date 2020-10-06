@@ -23,7 +23,7 @@ class Star:
     fwhm: int
 
     def toTSV(self):
-        return [self.x, self.y, self.brightness, self.fwhm]
+        return [self.x, self.y, self.brightness, self.fwhm, 0]
 
 
 @dataclass
@@ -35,7 +35,7 @@ class Object:
     positions: list
 
     def toTSV(self, pos):
-        return [self.positions[pos][0], self.positions[pos][1], self.brightness, self.fwhm]
+        return [self.positions[pos][0], self.positions[pos][1], self.brightness, self.fwhm, 1]
 
 
 class StarGenerator:
@@ -49,7 +49,7 @@ class StarGenerator:
 
     def generateOneSeries(self):
 
-        t = time.time()
+        t = int(time.time())
 
         objects = [self.randomObject() for i in range(self.config.Objects.count.value())]
         stars = self.generateStars()
@@ -85,11 +85,11 @@ class StarGenerator:
 
         for i in range(8):
             data = [s.toTSV() for s in stars] + [o.toTSV(i) for o in objects]
-            df = pd.DataFrame(np.array(data), columns=["x", "y", "brightness", "fwhm"])
+            df = pd.DataFrame(np.array(data), columns=["x", "y", "brightness", "fwhm", "is_object"])
             df.to_csv(f"{directory}/data_{i}'.csv", index=False)
 
         data = [[i] + o.toTSV(i) for o in objects for i in range(8)]
-        df = pd.DataFrame(np.array(data), columns=["image_number", "x", "y", "brightness", "fwhm"])
+        df = pd.DataFrame(np.array(data), columns=["image_number", "x", "y", "brightness", "fwhm", "is_object"])
         df.to_csv(f"{directory}/objects.csv", index=False)
 
     def plotSeries(self, images):
