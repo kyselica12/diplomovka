@@ -185,9 +185,51 @@ class StarGenerator:
         fits.writeto(name, image.astype(np.float32), overwrite=True)
 
 
+class TrainingDataGenerator(StarGenerator):
+
+    def generateData(self, N):
+
+
+        n_star_triplets = N //2
+        n_object_triplets = N //2
+
+        data_X = []
+        data_y = []
+
+        for _ in range(n_star_triplets):
+            data_X.append(self.randomStar().toTSV()[:-1] + self.randomStar().toTSV()[:-1] + self.randomStar().toTSV()[:-1])
+            data_y.append(0)
+
+        for _ in range(n_object_triplets):
+            obj = self.randomObject()
+            i = random.randrange(0,6)
+
+            data_X.append(obj.toTSV(i)[:-1] + obj.toTSV(i+1)[:-1] + obj.toTSV(i+2)[:-1])
+            data_y.append(1)
+
+        data_X = np.array(data_X)
+        data_y = np.array(data_y)
+
+        idx = np.arange(0,len(data_y))
+        np.random.shuffle(idx)
+
+        data_X = data_X[idx]
+        data_y = data_y[idx]
+
+        return  data_X, data_y
+
+
+
+
+
 if __name__ == "__main__":
     config = configuration.loadConfig()
 
-    gen = StarGenerator(config)
+    # gen = StarGenerator(config)
+    # gen.generateSeries()
 
-    gen.generateSeries()
+    gen = TrainingDataGenerator(config)
+
+    res = gen.generateData(10)
+
+    print(res)
