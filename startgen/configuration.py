@@ -75,8 +75,8 @@ class Configuration:
         self.Noise = Noise(**self.Noise)
 
 
-def loadConfig():
-    with open("config.yml", "r") as ymlfile:
+def loadConfig(filename="config.yml"):
+    with open(filename, "r") as ymlfile:
         cfg = yaml.load(ymlfile)
     return Configuration(**cfg)
 
