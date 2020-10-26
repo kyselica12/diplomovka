@@ -187,24 +187,31 @@ class StarGenerator:
 
 class TrainingDataGenerator(StarGenerator):
 
-    def generateData(self, N):
+    def generateData(self, N, k=3):
 
 
-        n_star_triplets = N //2
-        n_object_triplets = N //2
+        half_examples = N //2
 
         data_X = []
         data_y = []
 
-        for _ in range(n_star_triplets):
-            data_X.append(self.randomStar().toTSV()[:-1] + self.randomStar().toTSV()[:-1] + self.randomStar().toTSV()[:-1])
+        for _ in range(half_examples):
+            res = []
+            for _ in range(k):
+                res += self.randomStar().toTSV()[:-1]
+
+            data_X.append(res)
             data_y.append(0)
 
-        for _ in range(n_object_triplets):
+        for _ in range(half_examples):
             obj = self.randomObject()
-            i = random.randrange(0,6)
+            i = random.randrange(0,8-k+1)
+            res = []
 
-            data_X.append(obj.toTSV(i)[:-1] + obj.toTSV(i+1)[:-1] + obj.toTSV(i+2)[:-1])
+            for j in range(k):
+                res += obj.toTSV(i+j)[:-1]
+
+            data_X.append(res)
             data_y.append(1)
 
         data_X = np.array(data_X)
