@@ -86,7 +86,7 @@ class StarGenerator:
         for i in range(8):
             data = [s.toTSV() for s in stars] + [o.toTSV(i) for o in objects]
             df = pd.DataFrame(np.array(data), columns=["x", "y", "brightness", "fwhm", "is_object"])
-            df.to_csv(f"{directory}/data_{i+1:04d}'.tsv", index=False)
+            df.to_csv(f"{directory}/data_{i+1:04d}'.tsv", index=False, sep='\t')
 
         data = [[i] + o.toTSV(i) for o in objects for i in range(8)]
         df = pd.DataFrame(np.array(data), columns=["image_number", "x", "y", "brightness", "fwhm", "is_object"])
