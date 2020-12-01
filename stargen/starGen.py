@@ -83,14 +83,14 @@ class StarGenerator:
         directory = os.path.join(self.config.dataFile, f'{t}')
         os.mkdir(directory)
 
-        for i in range(8):
+        for i in range(1,9):
             data = [s.toTSV() for s in stars] + [o.toTSV(i) for o in objects]
             df = pd.DataFrame(np.array(data), columns=["x", "y", "brightness", "fwhm", "is_object"])
-            df.to_csv(f"{directory}/data_{i}'.csv", index=False)
+            df.to_csv(f"{directory}/data_{i:04d}'.tsv", index=False)
 
         data = [[i] + o.toTSV(i) for o in objects for i in range(8)]
         df = pd.DataFrame(np.array(data), columns=["image_number", "x", "y", "brightness", "fwhm", "is_object"])
-        df.to_csv(f"{directory}/objects.csv", index=False)
+        df.to_csv(f"{directory}/objects.tsv", index=False)
 
     def plotSeries(self, images):
         fig, axs = plt.subplots(2, 4)

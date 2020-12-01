@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/stargen.iml" filepath="$PROJECT_DIR$/.idea/stargen.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../stargen/.idea/stargen.iml" filepath="$PROJECT_DIR$/../stargen/.idea/stargen.iml" />
     </modules>
   </component>
 </project>
