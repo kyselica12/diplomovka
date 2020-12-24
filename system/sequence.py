@@ -8,8 +8,8 @@ class Sequence:
     def __init__(self, path, sufix='_m_s_a'):
         self.names = None
         self.seq = self.load(path, sufix)
-        self.masked = self.masking(0.002)
         self.MIN, self.MAX, self.VAR = self.compute_stats()
+        self.masked = self.masking(0.002)
 
 
 
@@ -53,43 +53,8 @@ class Sequence:
 
     def masking(self, threshold):
         # TODO opravit a vymysliet ako to vratit pre SystemLoop
-        n = self.seq[0].shape[1] + 1
-        data = []
 
-        for i, image in enumerate(self.seq):
-            image = np.concatenate(((image[:,-2:]-self.MIN)/self.VAR, np.ones((image.shape[0], 1)) * i), axis=1)
-            data = np.append(data, image)
-
-        data = data.reshape(-1, n)
-
-        # sort along X-axis
-
-        indexes = []
-        obj = None
-        dup_flag = False
-
-        for i in np.lexsort((data[:, 1], data[:, 0])):
-            # take first object as reference
-            if obj is None:
-                obj = i
-                indexes.append(obj)
-            else:
-                X_dist = data[i][0] - data[obj][0]  # distance in X axis  [%]
-                Y_dist = data[i][1] - data[obj][1]  # distance in Y axis  [%]
-                dist = np.sqrt(X_dist ** 2 + Y_dist ** 2)
-
-                if dist > threshold:
-                    obj = i
-                    indexes.append(obj)
-
-        data = data[indexes]
-
-        new_seq = [None] * len(self.seq)
-
-        for i in range(len(self.seq)):
-            new_seq[i] = self.seq[data[:, n - 1] == i]
-
-        return new_seq
+        return []
 
     def __len__(self):
         return len(self.seq)
