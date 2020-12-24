@@ -65,3 +65,4 @@ class Model:
         output = self.denormalize(output)
         status.directions = output
         status.predictions = data[:,-1] + output
+
