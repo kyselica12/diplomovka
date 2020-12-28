@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from typing import Tuple
+
 import numpy as np
 
 
@@ -32,18 +35,17 @@ class Tracklet:
         self.vector_confidence_average = np.mean(vector_confidence[ok])
         self.average_vector = np.mean(vector, axis=0)
         self.average_vector_norm = np.linalg.norm(self.average_vector)
-        self.gap_confidence = (sequence_length - 2 - self.total_bad) / (sequence_length - 2)
+        self.gap_confidence = (sequence_length - 2 - self.total_bad) / (sequence_length - 2) if sequence_length > 2  else 1
 
     def append(self, t: Tracklet) -> Tracklet:
         start_idx = self.start_idx
         end_idx = t.end_idx
 
-        data = np.concatenate((self.data, t.data[self.end_idx-t.start_idx:]))
-        data_pred = np.concatenate((self.data_pred, t.data_pred[self.end_idx-t.start_idx:]))
+        data = np.concatenate((self.data, t.data[self.end_idx - t.start_idx:]))
+        data_pred = np.concatenate((self.data_pred, t.data_pred[self.end_idx - t.start_idx:]))
         total_bad = self.total_bad + t.total_bad
 
         return Tracklet(data, data_pred, total_bad, start_idx, end_idx)
-
 
     def get_last_n(self, n):
         data = self.data[-n:]
@@ -59,10 +61,13 @@ class Tracklet:
                 break
         return res
 
-    def is_the_same(self, other: Tracklet):
+    def is_part_of(self, other: Tracklet):
         overlap = other.start_idx - self.start_idx
-        ok = self.data[overlap:] != self.data_pred[overlap:] # data from images not guessed
-        return np.all(self.data[overlap:][ok] == other.data[:self.end_idx-overlap][ok])
+        ok = self.data[overlap:] != self.data_pred[overlap:]  # data from images not guessed
+        return np.all(self.data[overlap:][ok] == other.data[:self.end_idx - overlap][ok])
 
-    # TODO -> spravit finalny vypis do suboru, bude treba pracovat s celou sekvenciou
+    def true_positions(self) -> Tuple[np.ndarray, np.ndarray]:
+        ok = np.logical_and(self.data_pred[:, 0] != self.data[:, 0], self.data_pred[:, 1] != self.data[:, 1])
+        idx = np.where(ok)
 
+        return self.data[ok], idx[0]

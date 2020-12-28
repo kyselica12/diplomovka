@@ -1,6 +1,9 @@
+import glob
 from typing import List
 
 import torch
+
+from argparser import parse_args
 from model import Model
 from sequence import Sequence
 from systemLoop import SystemLoop
@@ -9,13 +12,10 @@ import numpy as np
 
 from tracklet import Tracklet
 
+def find_tracklet(seq, model, k, start_idx, end_idx, match_threshold, tracklets: List[Tracklet], penalty) -> List[Tracklet]:
 
-def find_tracklet(seq, model, k, start_idx, end_idx, tracklets: List[Tracklet], penalty) -> List[Tracklet]:
+    systemLoop = SystemLoop(seq=seq, k=k, start_idx=start_idx, end_idx=end_idx)
 
-    print('Create system loop')
-    systemLoop = SystemLoop(seq=seq, k=K, start_idx=start_idx, end_idx=end_idx)
-    print('Masking')
-    systemLoop.masking(threshold=0.002)
     status = systemLoop.create_status(tracklets, penalty=penalty)
 
     if tracklets is not None:
@@ -25,12 +25,11 @@ def find_tracklet(seq, model, k, start_idx, end_idx, tracklets: List[Tracklet], 
 
     for i, img in systemLoop.loop(status, init_length=init_length):
         model.predict(status)
-        systemLoop.match(status, img, threshold=0.01)
+        systemLoop.match(status, img, threshold=match_threshold)
         systemLoop.update(status)
     res = systemLoop.get_result(status)
 
     return res
-
 
 def combine_tracklets(tracklets, tmp):
     if tracklets is None:
@@ -39,7 +38,7 @@ def combine_tracklets(tracklets, tmp):
         res = []
         for t1 in tracklets:
             for idx, t2 in enumerate(tmp):
-                if t1.is_the_same(t2):
+                if t1.is_part_of(t2):
                     res.append(t1)
                     tmp = np.delete(tmp, idx)
                     break
@@ -49,46 +48,126 @@ def combine_tracklets(tracklets, tmp):
 
     return tracklets
 
+def test():
 
-# TODO vybrat parametre von
-# - masking threshold
-# - match threshold
-# - K
-# - overlap
-
-if __name__ == "__main__":
-    seq_path = "10007C_5_R_30-11-20_10..21..28"
     model_path = "Albert_vector.model"
+    masking_threshold = 0.002
+    match_threshold = 0.003
+    K = 2
+    overlap = 2
 
     device = 'cpu'
     if torch.cuda.is_available():
-        device='cuda:0'
+        device = 'cuda:0'
 
-    K = 2
-
-    print('Load model')
+    print(f'Load model {model_path}')
     model = Model(path=model_path, device=device)
 
-    print('Load sequence')
-    seq = Sequence(path=seq_path)
-
-    tracklets = None
-    for i in range(K + 1):
-        tmp = find_tracklet(seq, model, K, start_idx=i, end_idx=8, tracklets=None, penalty=i)
-        tracklets = combine_tracklets(tracklets, tmp)
+    for seq_path in glob.iglob(f"./astronomia/*"):
 
 
-    print(f'Number of tracklets: {len(tracklets)}')
+        print(f'Load sequence {seq_path}')
+        seq = Sequence(path=seq_path, masking_threshold=0.002)
 
-    for i in range(6, len(seq)-6, 6):
-        tracklets = find_tracklet(seq, model, K, start_idx=i, end_idx=i+8, tracklets=tracklets, penalty=0)
+        tracklets = None
+        for i in range(K + 1):
+            tmp = find_tracklet(seq=seq,
+                                model=model,
+                                k=K,
+                                start_idx=i,
+                                end_idx=8,
+                                match_threshold=match_threshold,
+                                tracklets=None,
+                                penalty=i)
 
-        if len(tracklets) == 0:
-            print('No object found')
-            break
+            tracklets = combine_tracklets(tracklets, tmp)
 
-    for r in tracklets:
-        print(r.data, r.gap_confidence, r.vector_confidence_average)
+        print(f'Number of initial tracklets: {len(tracklets)}')
+
+        step = 8 - overlap
+        for i in range(step, len(seq), step):
+            if len(tracklets) == 0:
+                print('No object found')
+                break
+            tracklets = find_tracklet(seq=seq,
+                                      model=model,
+                                      k=K,
+                                      start_idx=i,
+                                      end_idx=min(i + 8, len(seq)),
+                                      match_threshold=match_threshold,
+                                      tracklets=tracklets,
+                                      penalty=0)
+            if len(tracklets) == 0:
+                print('No object found')
+                break
+
+
+        for r in tracklets:
+            print(r.gap_confidence, r.vector_confidence_average)
+            print(r.start_idx, r.end_idx, r.average_vector)
+            ok = seq.compare_TB_from_file(r)
+            print(f'   -> {":)" if ok else ":/ Not"} Found')
+
+
+if __name__ == "__main__":
+
+    TEST = True
+
+    if TEST:
+        print("Test")
+        test()
+
+    else:
+
+        args = parse_args()
+
+        seq_path = "03005A_2_R_27-11-20_10..30..35"  #args.input
+        model_path = args.model
+
+        masking_threshold = args.masking
+        match_threshold = args.matching
+        K = args.k
+        overlap = args.overlap
+
+        device = 'cpu'
+        if torch.cuda.is_available():
+            device='cuda:0'
+
+        for p in glob.iglob(f"./astronomia/*"):
+            print(p)
+
+        print(f'Load model {model_path}')
+        model = Model(path=model_path, device=device)
+
+        print(f'Load sequence {seq_path}')
+        seq = Sequence(path=seq_path, masking_threshold=0.002)
+
+        tracklets = None
+        for i in range(K + 1):
+            tmp = find_tracklet(seq=seq,
+                                model=model,
+                                k=K,
+                                start_idx=i,
+                                end_idx=8,
+                                match_threshold=match_threshold,
+                                tracklets=None,
+                                penalty=i)
+
+            tracklets = combine_tracklets(tracklets, tmp)
+
+        step = 8 - overlap
+        for i in range(step, len(seq) - step, step):
+            if len(tracklets) == 0:
+                break
+            tracklets = find_tracklet(seq=seq,
+                                      model=model,
+                                      k=K,
+                                      start_idx=i,
+                                      end_idx=i+8,
+                                      match_threshold=match_threshold,
+                                      tracklets=tracklets,
+                                      penalty=0)
+
 
 
 

@@ -1,25 +1,32 @@
 import glob
+from os import path
+
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+from tracklet import Tracklet
 
 
 class Sequence:
 
-    def __init__(self, path, sufix='_m_s_a'):
+    def __init__(self, path, sufix='_m_s_a', masking_threshold=0.002):
         self.names = None
-        self.seq = self.load(path, sufix)
+        self.path = path
+        self.sufix = sufix
+        self.seq = self.load()
         self.MIN, self.MAX, self.VAR = self.compute_stats()
-        self.masked = self.masking(0.002)
+        self.masked_normalized_data = self.masking(masking_threshold)
 
+        self.TB = None
 
-
-    def load(self, path, sufix):
-        N = max([int(f[:-4 - len(sufix)][-4:]) for f in glob.iglob(f'{path}/*AR/*.tsv')])
+    def load(self):
+        N = max([int(f[:-4 - len(self.sufix)][-4:]) for f in glob.iglob(f'{self.path}/*AR/*.tsv')])
 
         seq = [np.zeros((0, 2)) for _ in range(N)]
 
-        for tsv in glob.iglob(f'{path}/*AR/*.tsv'):
-            num = int(tsv[:-4 - len(sufix)][-4:]) - 1
+        for tsv in glob.iglob(f'{self.path}/*AR/*.tsv'):
+            num = int(tsv[:-4 - len(self.sufix)][-4:]) - 1
             res = pd.read_csv(tsv, sep="\t")
             if self.names is None:
                 self.names = res.columns.name
@@ -48,13 +55,133 @@ class Sequence:
     def get_var(self):
         return self.VAR
 
-    def get_equitorial_data(self):
-        return [ x[:, -2:] for x in self.seq ]
+    def masking(self, threshold=0.002):
+        seq = [(x[:, -2:] - self.MIN) / self.VAR for x in self.seq ]
+        n = seq[0].shape[1] + 1
+        data = []
 
-    def masking(self, threshold):
-        # TODO opravit a vymysliet ako to vratit pre SystemLoop
+        for i, image in enumerate(seq):
+            image = np.concatenate((image, np.ones((image.shape[0], 1)) * i), axis=1)
+            data = np.append(data, image)
 
-        return []
+        data = data.reshape(-1, n)
+
+        # sort along X-axis
+
+        indexes = []
+        obj = None
+        dup_flag = False
+
+        for i in np.lexsort((data[:, 1], data[:, 0])):
+            # take first object as reference
+            if obj is None:
+                obj = i
+                indexes.append(obj)
+            else:
+                X_dist = data[i][0] - data[obj][0]  # distance in X axis  [%]
+                Y_dist = data[i][1] - data[obj][1]  # distance in Y axis  [%]
+                dist = np.sqrt(X_dist ** 2 + Y_dist ** 2)
+
+                if dist > threshold:
+                    obj = i
+                    indexes.append(obj)
+
+        data = data[indexes]
+
+        new_seq = [None] * len(seq)
+
+        for i in range(len(seq)):
+            new_seq[i] = data[data[:, n - 1] == i][:, :-1]
+
+        return new_seq
+
+    def get_normalized_equatorial_data(self, start, end):
+        return self.masked_normalized_data[start:end].copy()
+
+    def interprate_tracklet(self, t: Tracklet):
+
+        data = t.data
+
+        seq_idx = []
+
+        for i in range(t.start_idx, t.end_idx):
+            ok = self.seq[i][:, -2:] == data[i-t.start_idx]
+            point_position = np.logical_and(ok[:, 0], ok[:, 1])
+            if np.all(np.logical_not(point_position)):
+                continue
+            seq_idx.append([i, np.where(point_position)[0][0]])
+
+        return seq_idx
+
+    def load_TB_file(self):
+        name = self.path[-30:-20]
+        txt = f'{self.path}/IPE-TB/{name}.txt'
+
+        if not path.exists(txt):
+            raise FileNotFoundError("Tracklet building file does not exist")
+
+        with open(txt, 'r') as f:
+            lines = f.read().split('\n')
+
+        idx = []
+
+        for line in lines[18:]:
+            if line == '':
+                break
+
+            parts = line.split()
+            num = int(parts[0][11:15])
+            x = float(parts[9])
+            y = float(parts[10])
+
+            ok = np.round(self.seq[num-1][:, :2], decimals=2) == [x, y]
+            t = self.seq[num-1][ok[:, 0] * ok[:, 1]][0]  # prvy_stpec_zhodny AND druhy_stlpec_zhodny
+
+            idx.append([num-1, np.where(ok[:, 0] * ok[:, 1])[0][0]])
+
+        return np.array(idx)
+
+    def compare_TB_from_file(self, t: Tracklet):
+
+        if self.TB is None:
+            self.TB = self.load_TB_file()
+
+        idx = self.interprate_tracklet(t)
+
+        for x in self.TB:
+            if not np.any(x == idx):
+                return False
+
+        print(f'Diference in length: {len(idx)-len(self.TB)}')
+
+        t1 = set([tuple(x) for x in idx])
+        t2 = set([tuple(x) for x in self.TB])
+
+        in_t1_only = self.get_data_from_index(t1 - t2)
+        in_t2_only = self.get_data_from_index(t2 - t1)
+        in_t1_t2 = self.get_data_from_index(t1 & t2)
+
+        fig, ax = plt.subplots()
+        if len(in_t1_only) > 0: self.plot_points(ax, in_t1_only, 'Only in found tracklet', 'blue')
+        if len(in_t2_only) > 0: self.plot_points(ax, in_t2_only, 'Only in orginal tracklet', 'red')
+        if len(in_t1_t2)   > 0: self.plot_points(ax, in_t1_t2, 'In both tracklets', 'green')
+        ax.legend()
+
+        fig.savefig(f'{self.path}/tracklet.png')
+        plt.close(fig)
+
+        return True
+
+    def plot_points(self, ax, data, label, color):
+        dataX, dataY = [],[]
+        if len(data) > 0:
+            dataX = data[:, -1]
+            dataY = data[:, -2]
+
+        ax.scatter(dataX, dataY, label=label, color=color)
+
+    def get_data_from_index(self, in_t1_only):
+        return np.array([self.seq[x[0]][x[1]] for x in in_t1_only])
 
     def __len__(self):
         return len(self.seq)

@@ -39,7 +39,7 @@ class SystemLoop:
         self.k = k
         self.start_idx = start_idx
         self.end_idx = end_idx
-        self.seq = [(x - self.low_bound) / self.var for x in seq.get_equitorial_data()[start_idx:end_idx]]
+        self.seq = seq.get_normalized_equatorial_data(start_idx, end_idx)
 
     def loop(self, status: LoopStatus, init_length=2):
         i = 0
@@ -83,44 +83,44 @@ class SystemLoop:
         couples = [list(item) for item in itertools.product(self.seq[0], self.seq[1])]
         return np.array(couples)
 
-    def masking(self, threshold):
-        n = self.seq[0].shape[1] + 1
-        data = []
-
-        for i, image in enumerate(self.seq):
-            image = np.concatenate((image, np.ones((image.shape[0], 1)) * i), axis=1)
-            data = np.append(data, image)
-
-        data = data.reshape(-1, n)
-
-        # sort along X-axis
-
-        indexes = []
-        obj = None
-        dup_flag = False
-
-        for i in np.lexsort((data[:, 1], data[:, 0])):
-            # take first object as reference
-            if obj is None:
-                obj = i
-                indexes.append(obj)
-            else:
-                X_dist = data[i][0] - data[obj][0]  # distance in X axis  [%]
-                Y_dist = data[i][1] - data[obj][1]  # distance in Y axis  [%]
-                dist = np.sqrt(X_dist ** 2 + Y_dist ** 2)
-
-                if dist > threshold:
-                    obj = i
-                    indexes.append(obj)
-
-        data = data[indexes]
-
-        new_seq = [None] * len(self.seq)
-
-        for i in range(len(self.seq)):
-            new_seq[i] = data[data[:, n - 1] == i][:, :-1]
-
-        self.seq = new_seq
+    # def masking(self, threshold):
+    #     n = self.seq[0].shape[1] + 1
+    #     data = []
+    #
+    #     for i, image in enumerate(self.seq):
+    #         image = np.concatenate((image, np.ones((image.shape[0], 1)) * i), axis=1)
+    #         data = np.append(data, image)
+    #
+    #     data = data.reshape(-1, n)
+    #
+    #     # sort along X-axis
+    #
+    #     indexes = []
+    #     obj = None
+    #     dup_flag = False
+    #
+    #     for i in np.lexsort((data[:, 1], data[:, 0])):
+    #         # take first object as reference
+    #         if obj is None:
+    #             obj = i
+    #             indexes.append(obj)
+    #         else:
+    #             X_dist = data[i][0] - data[obj][0]  # distance in X axis  [%]
+    #             Y_dist = data[i][1] - data[obj][1]  # distance in Y axis  [%]
+    #             dist = np.sqrt(X_dist ** 2 + Y_dist ** 2)
+    #
+    #             if dist > threshold:
+    #                 obj = i
+    #                 indexes.append(obj)
+    #
+    #     data = data[indexes]
+    #
+    #     new_seq = [None] * len(self.seq)
+    #
+    #     for i in range(len(self.seq)):
+    #         new_seq[i] = data[data[:, n - 1] == i][:, :-1]
+    #
+    #     self.seq = new_seq
 
     def match(self, status: LoopStatus, img, threshold):
 
