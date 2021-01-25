@@ -1,5 +1,6 @@
 import glob
 from os import path
+from typing import List
 
 import pandas as pd
 import numpy as np
@@ -18,8 +19,6 @@ class Sequence:
         self.MIN, self.MAX, self.VAR = self.compute_stats()
         self.masked_normalized_data = self.masking(masking_threshold)
 
-        self.TB = None
-
     def load(self):
         N = max([int(f[:-4 - len(self.sufix)][-4:]) for f in glob.iglob(f'{self.path}/*AR/*.tsv')])
 
@@ -29,7 +28,7 @@ class Sequence:
             num = int(tsv[:-4 - len(self.sufix)][-4:]) - 1
             res = pd.read_csv(tsv, sep="\t")
             if self.names is None:
-                self.names = res.columns.name
+                self.names = list(res.columns)
             res.columns.name = None
             seq[num] = res.to_numpy()
 
@@ -113,6 +112,34 @@ class Sequence:
 
         return seq_idx
 
+    def get_data_from_index(self, idx):
+        return np.array([self.seq[x[0]][x[1]] for x in idx])
+
+    def save_tracklets(self, tracklets: List[Tracklet]):
+
+        for i, t in enumerate(tracklets):
+            idx = np.array(self.interprate_tracklet(t))
+            data = np.array([self.seq[i][j] for i, j in idx])
+
+            data = np.concatenate((idx[:, 0].reshape(-1,1),data), axis=1)
+
+            names = ["file"] + self.names
+            df = pd.DataFrame(data=data, index=data[:,0], columns=names)
+
+            seq_name = self.path[-30:-20]
+            df['file'] = df['file'].apply(lambda x: f'{seq_name}-{int(x) + 1:04}{self.sufix}')
+
+            df.to_csv(f'{self.path}/{seq_name}_TB_{i:02}.tsv', sep='\t', index=False)
+
+            df = pd.DataFrame(data=np.array([[t.gap_confidence, t.vector_confidence_average]]), columns=['match_confidence', 'vector_confidence'])
+            df.to_csv(f'{self.path}/{seq_name}_TB_{i:02}_confidence.tsv', sep='\t', index=False)
+
+
+    def __len__(self):
+        return len(self.seq)
+
+class TestSequence(Sequence):
+
     def load_TB_file(self):
         name = self.path[-30:-20]
         txt = f'{self.path}/IPE-TB/{name}.txt'
@@ -143,7 +170,7 @@ class Sequence:
 
     def compare_TB_from_file(self, t: Tracklet):
 
-        if self.TB is None:
+        if not hasattr(self, 'TB'):
             self.TB = self.load_TB_file()
 
         idx = self.interprate_tracklet(t)
@@ -167,7 +194,7 @@ class Sequence:
         if len(in_t1_t2)   > 0: self.plot_points(ax, in_t1_t2, 'In both tracklets', 'green')
         ax.legend()
 
-        fig.savefig(f'{self.path}/tracklet.png')
+        fig.savefig(f'{self.path}/{self.path[-30:-20]}_TB.png')
         plt.close(fig)
 
         return True
@@ -179,9 +206,3 @@ class Sequence:
             dataY = data[:, -2]
 
         ax.scatter(dataX, dataY, label=label, color=color)
-
-    def get_data_from_index(self, in_t1_only):
-        return np.array([self.seq[x[0]][x[1]] for x in in_t1_only])
-
-    def __len__(self):
-        return len(self.seq)

@@ -232,11 +232,14 @@ class TrainingDataGenerator(StarGenerator):
 if __name__ == "__main__":
     config = configuration.loadConfig()
 
-    # gen = StarGenerator(config)
-    # gen.generateSeries()
+    gen = StarGenerator(config)
+    gen.generateSeries()
 
-    gen = TrainingDataGenerator(config)
 
-    res = gen.generateData(10)
 
-    print(res)
+
+    #gen = TrainingDataGenerator(config)
+
+    #res = gen.generateData(10)
+
+    #print(res)

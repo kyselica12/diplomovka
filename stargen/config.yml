@@ -1,9 +1,9 @@
 numberOfSeries: 1
 SizeX: 1024
 SizeY: 1024
-dataFile: /media/daniel/Windows/Users/user/Dropbox/diplomovka/stargen/data  # C:\Users\user\Dropbox\diplomovka\stargen\data
+dataFile: C:\Users\user\Dropbox\diplomovka\stargen\data # /media/daniel/Windows/Users/user/Dropbox/diplomovka/stargen/data  # 
 plot: True
-saveImages: False
+saveImages: True
 
 Stars:
   count:
