@@ -1,4 +1,4 @@
-# Dimplomova praca
+# Diplomova praca
 
 http://davinci.fmph.uniba.sk/~kyselica12/
 
